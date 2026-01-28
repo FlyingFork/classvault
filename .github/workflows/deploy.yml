@@ -16,7 +16,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /var/www/classvault
+            cd /src/apps/classvault
             git pull origin main
             npm ci --production=false
             npm run db:generate
