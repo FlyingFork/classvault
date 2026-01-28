@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id
+  name            String
+  email           String    @unique
+  emailVerified   Boolean   @default(false)
+  image           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  username        String?   @unique
+  displayUsername String?
+  role            String?
+  banned          Boolean?  @default(false)
+  banReason       String?
+  banExpires      DateTime?
+  accounts        Account[]
+  sessions        Session[]
+
+  // Relations for Class management
+  classesCreated Class[]
+
+  // Relations for File management
+  filesUploaded File[] @relation("FileUploadedBy")
+  fileApprovals File[] @relation("FileApprovedBy")
+  fileDeletions File[] @relation("FileDeletedBy")
+
+  // Relations for File Upload Requests
+  fileUploadRequests FileUploadRequest[] @relation("FileUploadRequester")
+  respondedRequests  FileUploadRequest[] @relation("FileUploadResponder")
+
+  // Relations for Notifications and Access Logs
+  notificationsReceived Notification[]
+  fileAccessLogs        FileAccessLog[]
+
+  // Relations for Admin Audit Logs
+  adminAuditLogs AdminAuditLog[] @relation("AdminAuditLogAdmin")
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// Class: Admin-managed categories for grouping files
+model Class {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  description      String?
+  allowedFileTypes String[] @default([])
+  isActive         Boolean  @default(true)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  files          File[]
+  uploadRequests FileUploadRequest[]
+
+  @@index([createdById])
+  @@map("class")
+}
+
+// File: Metadata and version tracking for uploaded files stored on external VPS
+model File {
+  id      String @id @default(cuid())
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  originalFileName String
+  fileType         String
+  externalVpsId    String
+  externalVpsUrl   String
+  size             BigInt
+  description      String?
+
+  // Upload tracking
+  uploadedById String
+  uploadedBy   User     @relation("FileUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  uploadedAt   DateTime @default(now())
+
+  // Approval tracking
+  isApproved   Boolean   @default(false)
+  approvedById String?
+  approvedBy   User?     @relation("FileApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+
+  // Version tracking
+  version          Int
+  parentFileId     String?
+  parentFile       File?   @relation("FileVersions", fields: [parentFileId], references: [id], onDelete: SetNull)
+  childVersions    File[]  @relation("FileVersions")
+  isCurrentVersion Boolean @default(true)
+
+  // Soft delete for old versions
+  isDeleted   Boolean   @default(false)
+  deletedById String?
+  deletedBy   User?     @relation("FileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  uploadRequest  FileUploadRequest?  @relation("FileUploadApproved")
+  updateRequests FileUploadRequest[] @relation("FileUploadBasedOn")
+  accessLogs     FileAccessLog[]
+
+  @@unique([parentFileId, version])
+  @@index([classId])
+  @@index([uploadedById])
+  @@index([approvedById])
+  @@index([parentFileId])
+  @@map("file")
+}
+
+// FileUploadRequest: Workflow for users requesting to upload files
+model FileUploadRequest {
+  id      String @id @default(cuid())
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("FileUploadRequester", fields: [userId], references: [id], onDelete: Cascade)
+
+  fileName    String
+  fileType    String
+  size        BigInt
+  description String?
+
+  // Pending file storage (before approval)
+  pendingFileId  String?
+  pendingFileUrl String?
+
+  status      String   @default("pending")
+  requestedAt DateTime @default(now())
+
+  // Admin response
+  respondedAt     DateTime?
+  respondedById   String?
+  respondedBy     User?     @relation("FileUploadResponder", fields: [respondedById], references: [id], onDelete: SetNull)
+  rejectionReason String?
+
+  // File relation (populated on approval)
+  fileId String? @unique
+  file   File?   @relation("FileUploadApproved", fields: [fileId], references: [id], onDelete: SetNull)
+
+  // For version updates: links to previous version
+  basedOnFileId String?
+  basedOnFile   File?   @relation("FileUploadBasedOn", fields: [basedOnFileId], references: [id], onDelete: SetNull)
+
+  // Notification relation
+  notificationId String?       @unique
+  notification   Notification? @relation("FileUploadNotification", fields: [notificationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Note: Duplicate pending requests prevented at application level (route.ts checks + P2002 fallback).
+  // DB-level unique constraint removed to allow multiple approved/rejected historical records.
+  @@index([classId, userId, fileName, status])
+  @@index([classId])
+  @@index([userId])
+  @@index([status])
+  @@map("file_upload_request")
+}
+
+// Notification: User notifications with actionable content
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  type        String
+  actionUrl   String?
+  actionLabel String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  // Entity relations for tracking context
+  relatedEntityType String?
+  relatedEntityId   String?
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  // Reverse relation to FileUploadRequest
+  uploadRequest FileUploadRequest? @relation("FileUploadNotification")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@map("notification")
+}
+
+// FileAccessLog: Audit trail for file downloads and access
+model FileAccessLog {
+  id     String @id @default(cuid())
+  fileId String
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  // Nullable to support anonymous/unauthenticated access logging
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([fileId])
+  @@index([userId])
+  @@index([accessedAt])
+  @@map("file_access_log")
+}
+
+// AdminAuditLog: Audit trail for admin actions
+model AdminAuditLog {
+  id String @id @default(cuid())
+
+  // Admin who performed the action
+  adminId String
+  admin   User   @relation("AdminAuditLogAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  // Action details
+  action      String // e.g., "approve_request", "reject_request", "delete_file", "restore_file", "rename_file", "create_class", etc.
+  entityType  String // e.g., "file", "request", "class", "user"
+  entityId    String // ID of the affected entity
+  description String // Human-readable description of the action
+
+  // Additional context (JSON string for flexibility)
+  metadata String?
+
+  // Timestamps
+  performedAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([entityType])
+  @@index([performedAt])
+  @@map("admin_audit_log")
+}

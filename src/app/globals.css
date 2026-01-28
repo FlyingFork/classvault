@@ -1,0 +1,65 @@
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0; /* ✅ removes the 8px default margin */
+  padding: 0;
+}
+
+body {
+  overflow-x: hidden;
+  background: var(--color-background);
+}
+
+/* background layer */
+.radix-bg-svg {
+  position: fixed;
+  inset: -20vh -20vw;
+  width: 140vw;
+  height: 140vh;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0; /* behind content */
+}
+
+/* Markdown heading share button - hover reveal */
+.heading-with-anchor .share-button-wrapper {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.heading-with-anchor:hover .share-button-wrapper,
+.heading-with-anchor:focus-within .share-button-wrapper {
+  opacity: 1;
+}
+
+/* Always show share button on touch devices */
+@media (hover: none) {
+  .heading-with-anchor .share-button-wrapper {
+    opacity: 1;
+  }
+}
+
+/* Markdown heading highlight animation for deep links */
+[data-highlighted="true"] {
+  animation: highlight-pulse 2s ease-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: var(--accent-4);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* Mobile TOC slide-up animation */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

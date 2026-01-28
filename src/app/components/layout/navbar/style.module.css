@@ -1,0 +1,20 @@
+/* Navbar positioning and scroll effect - minimal CSS required for fixed positioning and transitions */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 9999;
+  background-color: transparent;
+  backdrop-filter: blur(0px);
+  transition: all 0.3s ease-in-out;
+  border-bottom: 1px solid transparent;
+}
+
+.navbar.scrolled {
+  background-color: var(--color-panel-solid);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--gray-6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
