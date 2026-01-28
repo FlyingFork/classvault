@@ -155,10 +155,10 @@ export function FileViewClient({
         {/* Back link for navigation */}
         <Box>
           <Link
-            href="/dashboard"
+            href={`/browse/${file.classId}`}
             style={{ textDecoration: "none", color: "var(--accent-11)" }}
           >
-            <Text size="2">← Back to Dashboard</Text>
+            <Text size="2">← Back</Text>
           </Link>
         </Box>
 
