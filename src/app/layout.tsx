@@ -11,6 +11,8 @@ import { ThemeProvider } from "next-themes";
 import LayoutShell from "./components/layout/navbar/layout";
 import { Background } from "./components/BodyBackground";
 
+import "katex/dist/katex.min.css";
+
 export const metadata: Metadata = {
   title: "ClassVault",
   description: "Class Vault",

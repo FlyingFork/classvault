@@ -17,6 +17,9 @@ import rehypeSlug from "./rehypeSlug";
 import { extractHeadings, scrollToHeading } from "./utils";
 import { Text, Link as RadixLink } from "@radix-ui/themes";
 
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
+
 interface MarkdownViewerContainerProps {
   content: string;
   /** Show toast on copy success */
@@ -239,8 +242,13 @@ export function MarkdownViewerContainer({
       {/* Main content */}
       <Box style={{ flex: 1, minWidth: 0 }}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeSanitize, rehypeSlug, rehypeHighlight]}
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[
+            rehypeSanitize,
+            rehypeSlug,
+            rehypeHighlight,
+            rehypeKatex,
+          ]}
           components={components}
         >
           {content}
