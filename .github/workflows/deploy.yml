@@ -18,6 +18,7 @@ jobs:
           script: |
             cd /srv/apps/classvault
             git pull origin main
+            source /etc/profile.d/nvm.sh 
             npm ci --production=false
             npm run db:generate
             npm run db:migrate
