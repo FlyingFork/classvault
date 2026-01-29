@@ -1,16 +1,44 @@
-"use client";
+import { getMostAccessedFiles } from "@/lib/database/file-access-log";
+import { prisma } from "@/prisma";
+import LandingClient from "./LandingClient";
 
-import { Box, Flex, Section } from "@radix-ui/themes";
-import Lecture from "./components/illustrations/Lecture";
+export default async function Home() {
+  // Fetch statistics and top files in parallel
+  const [topFiles, filesCount, classesCount, studentsCount] = await Promise.all(
+    [
+      getMostAccessedFiles(3, 30),
+      prisma.file.count({
+        where: {
+          isDeleted: false,
+          isApproved: true,
+        },
+      }),
+      prisma.class.count({
+        where: {
+          isActive: true,
+        },
+      }),
+      prisma.user.count(),
+    ],
+  );
 
-export default function Home() {
+  // Serialize data for client component
+  const serializedTopFiles = topFiles.map((file) => ({
+    fileId: file.fileId,
+    fileName: file.fileName,
+    classId: file.classId,
+    className: file.className,
+    accessCount: Number(file.accessCount),
+  }));
+
   return (
-    <Section>
-      <Flex direction="column" align="center" justify="center">
-        <Box>
-          <Lecture />
-        </Box>
-      </Flex>
-    </Section>
+    <LandingClient
+      topFiles={serializedTopFiles}
+      stats={{
+        filesCount,
+        classesCount,
+        studentsCount,
+      }}
+    />
   );
 }
